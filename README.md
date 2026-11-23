@@ -83,8 +83,12 @@ The panel is fully localized, and Arabic is laid out right-to-left:
 ### Homebrew
 
 ```bash
-brew install --cask seneralkan/tap/agentawake
+brew tap seneralkan/tap
+brew trust seneralkan/tap        # Homebrew 7+ asks you to trust third-party taps once
+brew install --cask agentawake
 ```
+
+The first-launch note below applies to Homebrew installs too.
 
 ### Download
 
