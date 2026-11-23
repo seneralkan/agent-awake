@@ -90,7 +90,27 @@ brew install --cask seneralkan/tap/agentawake
 
 Grab `AgentAwake-x.y.z.zip` from [Releases](https://github.com/seneralkan/agent-awake/releases), unzip, and drag `AgentAwake.app` to `/Applications` (or `~/Applications`).
 
-> If the build isn't notarized, macOS will refuse to open it the first time. Right-click the app → **Open** → **Open**.
+#### "Apple could not verify AgentAwake…"
+
+Releases are not yet signed with an Apple Developer ID or notarized. macOS therefore blocks the first launch of any app downloaded from the internet that isn't notarized. You only need to do one of the following once:
+
+**Option A: System Settings**
+
+1. Open `AgentAwake.app` once and dismiss the warning.
+2. Go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to the AgentAwake message.
+3. Confirm with your password. From now on it opens normally.
+
+**Option B: Terminal**
+
+```bash
+xattr -dr com.apple.quarantine /Applications/AgentAwake.app
+```
+
+This removes the "downloaded from the internet" flag, so the app opens without the warning.
+
+> On macOS 15 (Sequoia) and later, the old *right-click → Open* trick no longer bypasses this warning. Use one of the options above.
+>
+> Building from source (below) avoids the warning entirely, because locally built apps aren't quarantined.
 
 ### Build from source
 
