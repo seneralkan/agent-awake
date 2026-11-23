@@ -6,6 +6,8 @@
 #   DEVELOPER_ID_CERT_PASSWORD password of that .p12
 #   SIGN_IDENTITY              e.g. "Developer ID Application: Your Name (TEAMID)"
 #   APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD   for notarytool (app-specific password)
+#   HOMEBREW_TAP_DEPLOY_KEY    private SSH key whose public half is a write deploy key on <owner>/homebrew-tap;
+#                              when set, the cask is bumped to the new version automatically
 name: Release
 
 on:
@@ -20,8 +22,9 @@ jobs:
     runs-on: macos-15
     env:
       HAS_CERT: ${{ secrets.DEVELOPER_ID_CERT_P12 != '' }}
+      HAS_TAP_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Import signing certificate and notary credentials
         if: env.HAS_CERT == 'true'
@@ -57,3 +60,22 @@ jobs:
           SHA=$(grep 'AgentAwake-' release.log | tail -1 | awk '{print $1}')
           gh release create "$GITHUB_REF_NAME" dist/*.zip --generate-notes \
             --notes "SHA-256: \`$SHA\`"
+
+      - name: Update Homebrew tap
+        if: env.HAS_TAP_KEY == 'true'
+        env:
+          TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+        run: |
+          KEY="$RUNNER_TEMP/tap_key"
+          printf '%s\n' "$TAP_DEPLOY_KEY" > "$KEY"
+          chmod 600 "$KEY"
+          export GIT_SSH_COMMAND="ssh -i $KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          git clone "git@github.com:${{ github.repository_owner }}/homebrew-tap.git" "$RUNNER_TEMP/tap"
+          cd "$RUNNER_TEMP/tap"
+          ./bump.sh "${GITHUB_REF_NAME#v}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then echo "Tap already up to date"; exit 0; fi
+          git commit -am "agentawake ${GITHUB_REF_NAME#v}"
+          git push
+          rm -f "$KEY"

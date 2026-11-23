@@ -218,6 +218,7 @@ Sources/AgentAwake/
 scripts/
   build.sh             universal .app bundle (ARCHS, VERSION, SIGN_IDENTITY)
   release.sh           zip + optional notarization + SHA-256
+  ship.sh              tag + push a release (CI does the rest)
   make-icon.swift      renders Resources/AppIcon.icns
 packaging/homebrew/    cask template
 ```
@@ -232,16 +233,24 @@ Adding a language: add a case to `Language` and a dictionary in `Localization.sw
 
 ### Releasing
 
+One command, from an up-to-date `main`:
+
 ```bash
-git tag v1.0.0 && git push --tags
+./scripts/ship.sh 1.1.0
 ```
 
-The [release workflow](.github/workflows/release.yml) builds a universal binary and publishes a GitHub release. If the Apple Developer ID secrets are configured, it also signs, notarizes and staples the app; the required secrets are listed in the workflow file. Then copy the printed SHA-256 into the Homebrew cask.
+It checks that the tree is clean and in sync with `origin/main`, then tags `v1.1.0` and pushes the tag. The [release workflow](.github/workflows/release.yml) takes it from there:
 
-Local equivalent:
+1. It builds a universal binary and publishes the GitHub release with the zip and its SHA-256.
+2. If the Apple Developer ID secrets are configured, it signs, notarizes and staples the app.
+3. It bumps `version` and `sha256` in [seneralkan/homebrew-tap](https://github.com/seneralkan/homebrew-tap), using a write deploy key scoped to that repo only (`HOMEBREW_TAP_DEPLOY_KEY` secret).
+
+All secrets are listed at the top of the workflow file.
+
+Local build of a release zip, without publishing:
 
 ```bash
-VERSION=1.0.0 SIGN_IDENTITY="Developer ID Application: …" NOTARY_PROFILE=agentawake ./scripts/release.sh
+VERSION=1.1.0 SIGN_IDENTITY="Developer ID Application: …" NOTARY_PROFILE=agentawake ./scripts/release.sh
 ```
 
 ## License
