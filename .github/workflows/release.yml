@@ -1,0 +1,59 @@
+# Push a tag like v1.0.0 to build a universal app and attach it to a GitHub release.
+# Signing + notarization run only when the Apple secrets below are configured; otherwise the zip is ad-hoc signed.
+#
+# Repository secrets (optional):
+#   DEVELOPER_ID_CERT_P12      base64 of your "Developer ID Application" certificate exported as .p12
+#   DEVELOPER_ID_CERT_PASSWORD password of that .p12
+#   SIGN_IDENTITY              e.g. "Developer ID Application: Your Name (TEAMID)"
+#   APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD   for notarytool (app-specific password)
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    env:
+      HAS_CERT: ${{ secrets.DEVELOPER_ID_CERT_P12 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import signing certificate and notary credentials
+        if: env.HAS_CERT == 'true'
+        env:
+          CERT: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          SIGN_IDENTITY: ${{ secrets.SIGN_IDENTITY }}
+        run: |
+          echo "$CERT" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          security create-keychain -p "" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          xcrun notarytool store-credentials agentawake \
+            --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" \
+            --keychain "$KEYCHAIN"
+          echo "SIGN_IDENTITY=$SIGN_IDENTITY" >> "$GITHUB_ENV"
+          echo "NOTARY_PROFILE=agentawake" >> "$GITHUB_ENV"
+
+      - name: Build release
+        run: VERSION="${GITHUB_REF_NAME#v}" ./scripts/release.sh | tee release.log
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA=$(grep 'AgentAwake-' release.log | tail -1 | awk '{print $1}')
+          gh release create "$GITHUB_REF_NAME" dist/*.zip --generate-notes \
+            --notes "SHA-256: \`$SHA\`"
