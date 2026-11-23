@@ -66,12 +66,7 @@ Click the moon in the menu bar:
 - **Setup.** Two steps with one-click buttons, shown only until both are done.
 - **Settings.** Auto-block, battery floor, notifications, launch at login and language.
 
-The panel is fully localized, and Arabic is laid out right-to-left:
-
-<p align="center">
-  <img src="docs/screenshot-tr.png" width="260" alt="Turkish">&nbsp;&nbsp;
-  <img src="docs/screenshot-ar.png" width="260" alt="Arabic">
-</p>
+The panel is fully localized in 6 languages, and Arabic is laid out right-to-left.
 
 | Menu bar icon | Meaning |
 |---|---|

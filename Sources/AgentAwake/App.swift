@@ -1,11 +1,9 @@
 import AppKit
-import ServiceManagement
 import SwiftUI
 
 @main
 struct AgentAwakeApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var guardian = SleepGuard.shared
 
     init() {
         // CLI mode for uninstallers: `AgentAwake --uninstall-hooks` removes the Claude Code hooks and exits.
@@ -20,17 +18,15 @@ struct AgentAwakeApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra {
-            PanelView(guardian: guardian)
-        } label: {
-            Image(nsImage: guardian.sleepDisabled ? MenuBarIcon.awake : MenuBarIcon.idle)
-        }
-        .menuBarExtraStyle(.window)
+        // The menu bar item and panel are owned by StatusController (see AppDelegate).
+        Settings { EmptyView() }
     }
 }
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var statusController: StatusController?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // `AgentAwake --render-screenshot <dir>`: renders the panel off-screen in every language
         // (for README screenshots and visual checks without screen-recording permission), then quits.
@@ -39,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             renderScreenshots(to: URL(fileURLWithPath: args[i + 1]))
             exit(0)
         }
+        statusController = StatusController(guardian: SleepGuard.shared)
     }
 
     private func renderScreenshots(to dir: URL) {

@@ -5,13 +5,22 @@
 #   ./scripts/build.sh --install    build, copy to ~/Applications, (re)launch
 #
 # Env:
-#   VERSION=1.2.0                         version written into Info.plist (default: 1.0.0)
+#   VERSION=1.2.0                         version written into Info.plist
+#                                         (default: from git — "1.2.0" on a tagged commit, "1.2.0-dev" after it)
 #   SIGN_IDENTITY="Developer ID Application: …"   sign for distribution (default: ad-hoc "-")
 #   ARCHS="arm64"                         build fewer architectures (default: "arm64 x86_64")
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VERSION="${VERSION:-1.0.0}"
+if [[ -z "${VERSION:-}" ]]; then
+  if tag=$(git describe --tags --exact-match 2>/dev/null); then
+    VERSION="${tag#v}"
+  elif tag=$(git describe --tags --abbrev=0 2>/dev/null); then
+    VERSION="${tag#v}-dev"
+  else
+    VERSION="0.0.0-dev"
+  fi
+fi
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 ARCHS="${ARCHS:-arm64 x86_64}"
 

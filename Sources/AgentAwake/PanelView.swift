@@ -54,6 +54,8 @@ struct PanelView: View {
         .padding(14)
         .frame(width: 340)
         .background(NightSky(glow: guardian.heroState == .working ? Theme.mint : Theme.amber))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
         .environment(\.layoutDirection, lang.layoutDirection)
         .preferredColorScheme(.dark)
         .animation(.easeInOut(duration: 0.25), value: guardian.heroState)
