@@ -59,10 +59,20 @@ enum ProcessScanner {
         let n = Int(proc_listallpids(&pids, Int32(capacity * MemoryLayout<pid_t>.size)))
         var result: [String: Int] = [:]
         var buf = [CChar](repeating: 0, count: 256)
+        var pathBuf = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)
         for pid in pids.prefix(max(n, 0)) where pid > 0 {
             guard proc_name(pid, &buf, UInt32(buf.count)) > 0 else { continue }
-            let name = String(cString: buf)
-            if names.contains(name) { result[name, default: 0] += 1 }
+            var name = String(cString: buf)
+            if !names.contains(name) {
+                // Versioned installs (e.g. Claude Code's native installer) exec `.../claude/versions/2.1.332`,
+                // so the process name is the version number; take the tool name from the path instead.
+                guard proc_pidpath(pid, &pathBuf, UInt32(pathBuf.count)) > 0 else { continue }
+                let parts = String(cString: pathBuf).split(separator: "/")
+                guard parts.count >= 3, parts[parts.count - 2] == "versions" else { continue }
+                name = String(parts[parts.count - 3])
+                guard names.contains(name) else { continue }
+            }
+            result[name, default: 0] += 1
         }
         return result
     }
